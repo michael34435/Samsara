@@ -1,8 +1,10 @@
 /**
  * Module dependencies
  */
+const _ = require('lodash');
 const { EventEmitter } = require('events');
 const moment = require('moment');
+const debug = require('debug')('Samsara:Worker');
 
 /**
  * Utilities
@@ -13,14 +15,8 @@ class Worker extends EventEmitter {
   constructor(config = {}) {
     super();
 
-    const { credentials, projectId } = config;
-
-    if (!credentials) {
-      throw new Error('`credentials` is required for setting up the Google Cloud Pub/Sub');
-    }
-
     this.config = config;
-    this.pubsub = new PubSub({ credentials, projectId });
+    this.pubsub = new PubSub(_.pick(config, ['credentials', 'projectId']));
 
     this.subscriptions = {};
   }
@@ -51,7 +47,7 @@ class Worker extends EventEmitter {
 
     subscription.on('message', (message) => {
       const doneCallback = () => {
-        console.log(`The job of ${topicName} is finished and submit the ack request`, { message });
+        debug(`The job of ${topicName} is finished and submit the ack request`, { message });
 
         // Since the message ack not support promise for now (google/pubsub repo WIP).
         // We have no way to know the exactly time when the ack job done.
@@ -60,7 +56,7 @@ class Worker extends EventEmitter {
       callback({ ...message.attributes, jobId: message.id }, doneCallback);
     });
     subscription.on('error', (error) => {
-      console.log(`The job of ${topicName} failed at ${moment().utc()}`, error);
+      debug(`The job of ${topicName} failed at ${moment().utc()}`, error);
       this.emit('error', error);
     });
   }
@@ -69,7 +65,7 @@ class Worker extends EventEmitter {
     const subscriptions = Object.values(this.subscriptions);
 
     subscriptions.forEach((subscription) => {
-      console.log('Shutting down the subscription of worker', { subscription });
+      debug('Shutting down the subscription of worker', { subscription });
       subscription.removeListener('message', () => { });
     });
 

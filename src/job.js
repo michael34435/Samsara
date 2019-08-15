@@ -1,7 +1,9 @@
 /**
  * Module dependencies
  */
+const _ = require('lodash');
 const moment = require('moment');
+const debug = require('debug')('Samsara:Job');
 
 /**
  * Utilities
@@ -18,13 +20,7 @@ class Job {
     this.data = data;
     this.config = config;
 
-    const { credentials, projectId } = config;
-
-    if (!credentials) {
-      throw new Error('`credentials` is required for setting up the Google Cloud Pub/Sub');
-    }
-
-    this.pubsub = new PubSub({ credentials, projectId });
+    this.pubsub = new PubSub(_.pick(config, ['credentials', 'projectId']));
   }
 
   async save() {
@@ -39,7 +35,7 @@ class Job {
       }),
     );
 
-    console.log(`The job created on the ${topicName}`, { data: this.data, dataBuffer });
+    debug(`The job created on the ${topicName}`, { data: this.data, dataBuffer });
 
     return topic.publisher(batching).publish(dataBuffer, this.data);
   }
